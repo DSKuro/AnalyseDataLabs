@@ -1,8 +1,12 @@
 import pandas as pd
 from sqlalchemy import create_engine
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 DB_USER = "postgres"
-DB_PASSWORD = "admin"
+DB_PASSWORD = os.getenv('DB_PASSWORD')
 DB_HOST = "localhost"
 DB_PORT = "5432"
 DB_NAME = "lol_db"
@@ -10,13 +14,13 @@ DB_NAME = "lol_db"
 engine = create_engine(f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}")
 
 csv_files = {
-    "champs": "D:/Repos/PyCharm/AnalyseDataLabs/Lab1/data/champs.csv",
-    "matches": "D:/Repos/PyCharm/AnalyseDataLabs/Lab1/data/matches.csv",
-    "participants": "D:/Repos/PyCharm/AnalyseDataLabs/Lab1/data/participants.csv",
-    "stats1": "D:/Repos/PyCharm/AnalyseDataLabs/Lab1/data/stats1.csv",
-    "stats2": "D:/Repos/PyCharm/AnalyseDataLabs/Lab1/data/stats2.csv",
-    "teamstats": "D:/Repos/PyCharm/AnalyseDataLabs/Lab1/data/teamstats.csv",
-    "teambans": "D:/Repos/PyCharm/AnalyseDataLabs/Lab1/data/teambans.csv"
+    "champs": "./champs.csv",
+    "matches": "./matches.csv",
+    "participants": "./participants.csv",
+    "stats1": "./stats1.csv",
+    "stats2": "./stats2.csv",
+    "teamstats": "./teamstats.csv",
+    "teambans": "./teambans.csv"
 }
 
 for table_name, file_path in csv_files.items():
