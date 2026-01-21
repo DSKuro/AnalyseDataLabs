@@ -1,0 +1,175 @@
+DROP TABLE IF EXISTS stats;
+DROP TABLE IF EXISTS participants;
+DROP TABLE IF EXISTS teamstats;
+DROP TABLE IF EXISTS teambans;
+DROP TABLE IF EXISTS matches;
+DROP TABLE IF EXISTS champs;
+
+CREATE TABLE champs (
+    name VARCHAR(50),
+    id INT PRIMARY KEY
+);
+
+CREATE TABLE matches (
+    id BIGINT PRIMARY KEY,
+    gameid BIGINT,
+    platformid VARCHAR(10),
+    queueid INT,
+    seasonid INT,
+    duration INT,
+    creation BIGINT,
+    version VARCHAR(20)
+);
+
+CREATE TABLE participants (
+    id INT PRIMARY KEY,
+    matchid BIGINT,
+    player VARCHAR(50),
+    championid INT,
+    ss1 INT,
+    ss2 INT,
+    role VARCHAR(20),
+    position VARCHAR(20)
+);
+
+CREATE TABLE stats1 (
+    id INT PRIMARY KEY,
+    win BOOLEAN,
+    item1 INT,
+    item2 INT,
+    item3 INT,
+    item4 INT,
+    item5 INT,
+    item6 INT,
+    trinket INT,
+    kills INT,
+    deaths INT,
+    assists INT,
+    largestkillingspree INT,
+    largestmultikill INT,
+    killingsprees INT,
+    longesttimespentliving INT,
+    doublekills INT,
+    triplekills INT,
+    quadrakills INT,
+    pentakills INT,
+    legendarykills INT,
+    totdmgdealt INT,
+    magicdmgdealt INT,
+    physicaldmgdealt INT,
+    truedmgdealt INT,
+    largestcrit INT,
+    totdmgtochamp INT,
+    magicdmgtochamp INT,
+    physdmgtochamp INT,
+    truedmgtochamp INT,
+    totheal INT,
+    totunitshealed INT,
+    dmgselfmit INT,
+    dmgtoobj INT,
+    dmgtoturrets INT,
+    visionscore INT,
+    timecc INT,
+    totdmgtaken INT,
+    magicdmgtaken INT,
+    physdmgtaken INT,
+    truedmgtaken INT,
+    goldearned INT,
+    goldspent INT,
+    turretkills INT,
+    inhibkills INT,
+    totminionskilled INT,
+    neutralminionskilled INT,
+    ownjunglekills INT,
+    enemyjunglekills INT,
+    totcctimedealt INT,
+    champlvl INT,
+    pinksbought INT,
+    wardsbought INT,
+    wardsplaced INT,
+    wardskilled INT,
+    firstblood BOOLEAN
+);
+
+CREATE TABLE stats2 (
+    id INT PRIMARY KEY,
+    win BOOLEAN,
+    item1 INT,
+    item2 INT,
+    item3 INT,
+    item4 INT,
+    item5 INT,
+    item6 INT,
+    trinket INT,
+    kills INT,
+    deaths INT,
+    assists INT,
+    largestkillingspree INT,
+    largestmultikill INT,
+    killingsprees INT,
+    longesttimespentliving INT,
+    doublekills INT,
+    triplekills INT,
+    quadrakills INT,
+    pentakills INT,
+    legendarykills INT,
+    totdmgdealt INT,
+    magicdmgdealt INT,
+    physicaldmgdealt INT,
+    truedmgdealt INT,
+    largestcrit INT,
+    totdmgtochamp INT,
+    magicdmgtochamp INT,
+    physdmgtochamp INT,
+    truedmgtochamp INT,
+    totheal INT,
+    totunitshealed INT,
+    dmgselfmit INT,
+    dmgtoobj INT,
+    dmgtoturrets INT,
+    visionscore INT,
+    timecc INT,
+    totdmgtaken INT,
+    magicdmgtaken INT,
+    physdmgtaken INT,
+    truedmgtaken INT,
+    goldearned INT,
+    goldspent INT,
+    turretkills INT,
+    inhibkills INT,
+    totminionskilled INT,
+    neutralminionskilled INT,
+    ownjunglekills INT,
+    enemyjunglekills INT,
+    totcctimedealt INT,
+    champlvl INT,
+    pinksbought INT,
+    wardsbought INT,
+    wardsplaced INT,
+    wardskilled INT,
+    firstblood BOOLEAN
+);
+
+CREATE TABLE teamstats (
+    matchid BIGINT,
+    teamid INT,
+    firstblood BOOLEAN,
+    firsttower BOOLEAN,
+    firstinhib BOOLEAN,
+    firstbaron BOOLEAN,
+    firstdragon BOOLEAN,
+    firstharry BOOLEAN,
+    towerkills INT,
+    inhibkills INT,
+    baronkills INT,
+    dragonkills INT,
+    harrykills INT,
+    PRIMARY KEY (matchid, teamid)
+);
+
+CREATE TABLE teambans (
+    matchid BIGINT,
+    teamid INT,
+    championid INT,
+    banturn INT
+);
