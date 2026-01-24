@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>LoL Analytics + AutoML</title>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<h1>LoL Analytics & AutoML</h1>
+
+<section>
+    <h2>Обучение модели</h2>
+
+    <button onclick="trainModel('baseline')">
+        Обучить baseline модель
+    </button>
+
+    <button onclick="trainModel('automl')">
+        Обучить AutoML (PyCaret)
+    </button>
+
+    <pre id="modelText"></pre>
+</section>
+
+<section>
+    <h2>AutoML: таблица алгоритмов</h2>
+
+    <table id="leaderboardTable" border="1">
+        <thead>
+            <tr>
+                <th>Algorithm</th>
+                <th>R²</th>
+                <th>RMSE</th>
+                <th>MAE</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+</section>
+
+<section>
+    <h2>График R²</h2>
+    <canvas id="r2Chart"></canvas>
+</section>
+
+<section>
+    <h2>График RMSE</h2>
+    <canvas id="rmseChart"></canvas>
+</section>
+
+<script src="app.js"></script>
+</body>
+</html>
