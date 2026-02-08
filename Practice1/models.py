@@ -21,7 +21,6 @@ class Champ(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String(50), nullable=False)
 
-    # Relationship to participants and teambans
     participants = relationship('Participant', back_populates='champ')
     teambans = relationship('TeamBan', back_populates='champ')
 
@@ -38,7 +37,6 @@ class Match(Base):
     creation = Column(BigInteger)
     version = Column(String(20))
 
-    # Relationships
     participants = relationship('Participant', back_populates='match')
     teamstats = relationship('TeamStat', back_populates='match')
 
@@ -55,7 +53,6 @@ class Participant(Base):
     role = Column(String(20))
     position = Column(String(20))
 
-    # Relationships
     match = relationship('Match', back_populates='participants')
     champ = relationship('Champ', back_populates='participants')
     stats1 = relationship(

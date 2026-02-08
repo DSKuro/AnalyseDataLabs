@@ -12,6 +12,9 @@ def load_and_merge_stats(path1='../data/stats1.csv', path2='../data/stats2.csv')
 
     df = pd.concat([df1, df2], ignore_index=True)
 
+    #df['win'] = df['win'].astype('category')
+    #df['firstblood'] = df['firstblood'].astype('category')
+
     print(f'Объединённый датасет: {df.shape[0]} строк, {df.shape[1]} столбцов\n')
     return df
 
