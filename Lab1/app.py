@@ -1,137 +1,189 @@
 import sys
 import pandas as pd
-from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QComboBox, QPushButton, QLineEdit, QFormLayout, QMessageBox
-from sqlalchemy import create_engine
-import matplotlib.pyplot as plt
-import seaborn as sns
 from urllib.parse import quote_plus
+
+from PySide6.QtWidgets import (
+    QApplication, QWidget, QVBoxLayout, QLabel,
+    QComboBox, QPushButton, QLineEdit, QFormLayout,
+    QMessageBox, QTextEdit
+)
+
+from sqlalchemy import create_engine
+
+import seaborn as sns
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
+
 
 class DataVizApp(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("League of Legends Data Analyzer")
-        self.setGeometry(100, 100, 450, 500)
+        self.setGeometry(100, 100, 700, 800)
 
-        self.layout = QVBoxLayout()
-        self.setLayout(self.layout)
+        self.layout = QVBoxLayout(self)
 
-        form_layout = QFormLayout()
-        self.host_input = QLineEdit("localhost")
-        self.port_input = QLineEdit("5432")
-        self.user_input = QLineEdit("postgres")
-        self.password_input = QLineEdit()
-        self.password_input.setEchoMode(QLineEdit.Password)
-        self.db_input = QLineEdit("lol_db")
+        form = QFormLayout()
+        self.host = QLineEdit("localhost")
+        self.port = QLineEdit("5432")
+        self.user = QLineEdit("postgres")
+        self.password = QLineEdit()
+        self.password.setEchoMode(QLineEdit.Password)
+        self.db = QLineEdit("lol_db")
 
-        form_layout.addRow("Host:", self.host_input)
-        form_layout.addRow("Port:", self.port_input)
-        form_layout.addRow("User:", self.user_input)
-        form_layout.addRow("Password:", self.password_input)
-        form_layout.addRow("Database:", self.db_input)
-        self.layout.addLayout(form_layout)
+        form.addRow("Host:", self.host)
+        form.addRow("Port:", self.port)
+        form.addRow("User:", self.user)
+        form.addRow("Password:", self.password)
+        form.addRow("Database:", self.db)
+        self.layout.addLayout(form)
 
-        self.connect_button = QPushButton("Подключиться к БД")
-        self.connect_button.clicked.connect(self.connect_db)
-        self.layout.addWidget(self.connect_button)
+        self.connect_btn = QPushButton("Подключиться")
+        self.connect_btn.clicked.connect(self.connect_db)
+        self.layout.addWidget(self.connect_btn)
 
-        self.layout.addWidget(QLabel("Выберите X (количественный):"))
+        self.layout.addWidget(QLabel("Просмотр таблиц matches / participants / teamstats"))
+        self.table_selector = QComboBox()
+        self.table_selector.addItems(["matches", "participants", "teamstats"])
+        self.layout.addWidget(self.table_selector)
+
+        self.preview_btn = QPushButton("Показать таблицу")
+        self.preview_btn.clicked.connect(self.preview_table)
+        self.preview_btn.setEnabled(False)
+        self.layout.addWidget(self.preview_btn)
+
+        self.table_view = QTextEdit()
+        self.table_view.setReadOnly(True)
+        self.layout.addWidget(self.table_view)
+
+        self.layout.addWidget(QLabel("X (количественный):"))
         self.combo_x = QComboBox()
         self.layout.addWidget(self.combo_x)
 
-        self.layout.addWidget(QLabel("Выберите Y (количественный):"))
+        self.layout.addWidget(QLabel("Y (количественный):"))
         self.combo_y = QComboBox()
         self.layout.addWidget(self.combo_y)
 
-        self.layout.addWidget(QLabel("Выберите категориальный признак (hue):"))
+        self.layout.addWidget(QLabel("Категориальный (hue):"))
         self.combo_hue = QComboBox()
         self.layout.addWidget(self.combo_hue)
 
-        self.layout.addWidget(QLabel("Выберите размер точек (size, количественный, optional):"))
+        self.layout.addWidget(QLabel("Размер (size, опционально):"))
         self.combo_size = QComboBox()
         self.layout.addWidget(self.combo_size)
 
-        self.hist_button = QPushButton("Построить гистограмму")
-        self.hist_button.clicked.connect(self.plot_histogram)
-        self.hist_button.setEnabled(False)
-        self.layout.addWidget(self.hist_button)
+        self.hist_btn = QPushButton("Гистограмма")
+        self.hist_btn.clicked.connect(self.plot_histogram)
+        self.hist_btn.setEnabled(False)
+        self.layout.addWidget(self.hist_btn)
 
-        self.scatter_button = QPushButton("Построить многомерный scatter")
-        self.scatter_button.clicked.connect(self.plot_multivariate)
-        self.scatter_button.setEnabled(False)
-        self.layout.addWidget(self.scatter_button)
+        self.scatter_btn = QPushButton("Многомерный анализ")
+        self.scatter_btn.clicked.connect(self.plot_scatter)
+        self.scatter_btn.setEnabled(False)
+        self.layout.addWidget(self.scatter_btn)
+
+        self.figure = Figure(figsize=(6, 4))
+        self.canvas = FigureCanvas(self.figure)
+        self.layout.addWidget(self.canvas)
 
     def connect_db(self):
-        host = self.host_input.text()
-        port = self.port_input.text()
-        user = self.user_input.text()
-        password = self.password_input.text()
-        dbname = self.db_input.text()
-        password_encoded = quote_plus(password)
-
         try:
-            self.engine = create_engine(f"postgresql://{user}:{password_encoded}@{host}:{port}/{dbname}")
+            password = quote_plus(self.password.text())
+            self.engine = create_engine(
+                f"postgresql://{self.user.text()}:{password}@"
+                f"{self.host.text()}:{self.port.text()}/{self.db.text()}"
+            )
 
+            # ---- ДАННЫЕ ДЛЯ АНАЛИЗА ----
             stats1 = pd.read_sql("SELECT * FROM stats1 LIMIT 1000", self.engine)
             stats2 = pd.read_sql("SELECT * FROM stats2 LIMIT 1000", self.engine)
             self.df = pd.concat([stats1, stats2], ignore_index=True)
 
-            self.df['win'] = self.df['win'].astype('category')
-            self.df['firstblood'] = self.df['firstblood'].astype('category')
+            # Типы
+            for col in ["win", "firstblood"]:
+                if col in self.df.columns:
+                    self.df[col] = self.df[col].astype("category")
 
-            numeric_cols = self.df.select_dtypes(include='number').columns.tolist()
-            cat_cols = self.df.select_dtypes(include=['category']).columns.tolist()
+            # Выгрузка промежуточная
+            self.df.to_csv("stats_combined.csv", index=False)
 
-            self.combo_x.clear()
-            self.combo_y.clear()
-            self.combo_size.clear()
-            self.combo_hue.clear()
+            self.describe_features()
+            self.fill_comboboxes()
 
-            for col in numeric_cols:
-                self.combo_x.addItem(col)
-                self.combo_y.addItem(col)
-                self.combo_size.addItem(col)
+            self.preview_btn.setEnabled(True)
+            self.hist_btn.setEnabled(True)
+            self.scatter_btn.setEnabled(True)
 
-            for col in cat_cols:
-                self.combo_hue.addItem(col)
-
-            self.hist_button.setEnabled(True)
-            self.scatter_button.setEnabled(True)
-
-            QMessageBox.information(self, "Успех", "Подключение выполнено, данные загружены!")
+            QMessageBox.information(
+                self,
+                "Успех",
+                "stats1 и stats2 загружены\n"
+                "Файл сохранён: stats_combined.csv"
+            )
 
         except Exception as e:
-            QMessageBox.critical(self, "Ошибка подключения", str(e))
+            QMessageBox.critical(self, "Ошибка", str(e))
+
+    def preview_table(self):
+        table = self.table_selector.currentText()
+        df = pd.read_sql(f"SELECT * FROM {table} LIMIT 5", self.engine)
+
+        text = f"Таблица: {table}\n\n"
+        text += "Первые строки:\n"
+        text += df.to_string()
+        text += "\n\nТипы данных:\n"
+        text += df.dtypes.to_string()
+
+        self.table_view.setText(text)
+
+    def describe_features(self):
+        print("\n=== ОПИСАНИЕ ПРИЗНАКОВ stats ===")
+
+        numeric = self.df.select_dtypes(include="number").columns
+        categorical = self.df.select_dtypes(include=["object", "category"]).columns
+        binary = [c for c in self.df.columns if self.df[c].nunique() == 2]
+
+        print("Количественные:", list(numeric))
+        print("Категориальные:", list(categorical))
+        print("Бинарные:", binary)
+
+    def fill_comboboxes(self):
+        num = self.df.select_dtypes(include="number").columns.tolist()
+        cat = self.df.select_dtypes(include=["category", "object"]).columns.tolist()
+
+        self.combo_x.addItems(num)
+        self.combo_y.addItems(num)
+        self.combo_size.addItems([""] + num)
+        self.combo_hue.addItems([""] + cat)
 
     def plot_histogram(self):
+        self.figure.clear()
+        ax = self.figure.add_subplot(111)
+
         col = self.combo_x.currentText()
-        plt.figure(figsize=(8,5))
-        plt.hist(self.df[col].dropna(), bins=30, color='skyblue', edgecolor='black')
-        plt.title(f"Гистограмма: {col}")
-        plt.xlabel(col)
-        plt.ylabel("Количество")
-        plt.show()
+        ax.hist(self.df[col].dropna(), bins=30)
+        ax.set_title(f"Гистограмма: {col}")
 
-    def plot_multivariate(self):
-        x_col = self.combo_x.currentText()
-        y_col = self.combo_y.currentText()
-        hue_col = self.combo_hue.currentText() if self.combo_hue.currentText() else None
-        size_col = self.combo_size.currentText() if self.combo_size.currentText() else None
+        self.canvas.draw()
 
-        plt.figure(figsize=(10,6))
+    def plot_scatter(self):
+        self.figure.clear()
+        ax = self.figure.add_subplot(111)
+
         sns.scatterplot(
             data=self.df,
-            x=x_col,
-            y=y_col,
-            hue=hue_col,
-            size=size_col,
-            sizes=(20,200) if size_col else None,
-            alpha=0.7
+            x=self.combo_x.currentText(),
+            y=self.combo_y.currentText(),
+            hue=self.combo_hue.currentText() or None,
+            size=self.combo_size.currentText() or None,
+            sizes=(20, 200),
+            alpha=0.7,
+            ax=ax
         )
-        plt.title(f"Multivariate plot: {x_col} vs {y_col}")
-        plt.xlabel(x_col)
-        plt.ylabel(y_col)
-        plt.legend(loc='upper left')
-        plt.show()
+
+        ax.set_title("Многомерный анализ (stats)")
+        self.canvas.draw()
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
