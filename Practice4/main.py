@@ -1,4 +1,6 @@
 from fastapi import FastAPI
+from starlette.staticfiles import StaticFiles
+
 from api.routes import router
 
 app = FastAPI(
@@ -8,3 +10,9 @@ app = FastAPI(
 )
 
 app.include_router(router)
+
+app.mount(
+    "/",
+    StaticFiles(directory="client", html=True),
+    name="client"
+)
