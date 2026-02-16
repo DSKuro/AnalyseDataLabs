@@ -19,6 +19,44 @@ def load_data():
     y = pd.Series(data.target, name="target")
     return X, y
 
+def perform_eda(X, y):
+    print("========== EDA ==========")
+
+    # Размер датасета
+    print("\nРазмер датасета:")
+    print("Строк:", X.shape[0])
+    print("Столбцов:", X.shape[1])
+
+    print("\nИспользование памяти (MB):")
+    print(X.memory_usage(deep=True).sum() / 1024**2)
+
+    print("\nПропуски:")
+    print(X.isnull().sum().sum())
+
+    print("\nРаспределение целевой переменной:")
+    print(y.value_counts())
+    print("Доли классов:")
+    print(y.value_counts(normalize=True))
+
+    print("\nОписательная статистика:")
+    stats = pd.DataFrame({
+        "min": X.min(),
+        "median": X.median(),
+        "mean": X.mean(),
+        "max": X.max(),
+        "25%": X.quantile(0.25),
+        "75%": X.quantile(0.75)
+    })
+
+    print(stats.head())
+
+    print("\nТоп-10 корреляций с target:")
+    corr = X.corrwith(y).sort_values(ascending=False)
+    print(corr.head(10))
+
+    print("========== END EDA ==========\n")
+
+
 def remove_outliers_iqr(X, y):
     Q1 = X.quantile(0.25)
     Q3 = X.quantile(0.75)
@@ -110,6 +148,7 @@ def plot_decision_boundaries(X, y, models,
 
 def main():
     X, y = load_data()
+    perform_eda(X, y)
     X, y = remove_outliers_iqr(X, y)
     X_train, X_test, y_train, y_test = split_and_scale(X, y)
     models = get_models()
