@@ -17,9 +17,7 @@ from sklearn.metrics import (
 from scipy.stats import ttest_ind, chi2_contingency
 import pickle
 
-# =========================
 # 1. Загрузка данных
-# =========================
 
 df = pd.read_csv("advertising.csv")
 
@@ -35,9 +33,7 @@ print(df.describe())
 print("\nОписание категориальных признаков:")
 print(df.describe(include='object'))
 
-# =========================
 # 2. Визуализация
-# =========================
 
 sns.countplot(x='Clicked on Ad', data=df)
 plt.title("Distribution of Target Variable")
@@ -53,9 +49,7 @@ plt.ylabel("Clicked on Ad")
 plt.title("Scatter Plot")
 plt.show()
 
-# =========================
 # 3. EDA (по требованиям)
-# =========================
 
 print("\n===== EDA =====")
 
@@ -81,9 +75,7 @@ eda_numeric['Q3'] = df[numeric_cols].quantile(0.75)
 print("\nЧисловой EDA:")
 print(eda_numeric)
 
-# =========================
 # 4. Подготовка данных
-# =========================
 
 df_model = df.drop(['Ad Topic Line', 'City', 'Country', 'Timestamp'], axis=1)
 
@@ -95,9 +87,7 @@ print(df_encoded.columns)
 print("\nРазмер датасета после кодирования:")
 print(df_encoded.shape)
 
-# =========================
 # 5. Корреляция
-# =========================
 
 corr = df_encoded.corr()
 
@@ -110,9 +100,7 @@ sns.heatmap(corr, annot=True, cmap='coolwarm')
 plt.title("Correlation Heatmap")
 plt.show()
 
-# =========================
 # 6. Разделение данных
-# =========================
 
 X = df_encoded.drop('Clicked on Ad', axis=1)
 y = df_encoded['Clicked on Ad']
@@ -124,9 +112,7 @@ X_train, X_test, y_train, y_test = train_test_split(
 print("\nРазмер обучающей выборки:", X_train.shape)
 print("Размер тестовой выборки:", X_test.shape)
 
-# =========================
 # 7. Обучение модели
-# =========================
 
 model = KNeighborsClassifier(n_neighbors=5)
 model.fit(X_train, y_train)
@@ -141,9 +127,7 @@ print("Test Accuracy:", accuracy_score(y_test, test_pred))
 print("\nClassification Report:")
 print(classification_report(y_test, test_pred))
 
-# =========================
 # 8. Метрики
-# =========================
 
 cm = confusion_matrix(y_test, test_pred)
 accuracy = accuracy_score(y_test, test_pred)
@@ -169,9 +153,7 @@ plt.ylabel("True Positive Rate")
 plt.title("ROC Curve")
 plt.show()
 
-# =========================
 # 9. Гипотеза 1 (t-test)
-# =========================
 
 print("\n===== Гипотеза 1 =====")
 print("H0: Среднее время на сайте одинаково у кликнувших и не кликнувших")
@@ -189,9 +171,7 @@ if p_value < 0.05:
 else:
     print("Не отклоняем H0")
 
-# =========================
 # 10. Гипотеза 2 (Chi-square)
-# =========================
 
 print("\n===== Гипотеза 2 =====")
 print("H0: Пол и клик независимы")
@@ -208,9 +188,7 @@ if p < 0.05:
 else:
     print("Не отклоняем H0 — зависимости нет")
 
-# =========================
 # 11. Сохранение модели
-# =========================
 
 with open("advertising_model.pkl", "wb") as f:
     pickle.dump(model, f)
