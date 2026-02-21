@@ -9,6 +9,9 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
+
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LinearRegression, Lasso
@@ -61,6 +64,10 @@ class MLApp(QWidget):
         layout.addWidget(self.btn_save)
         layout.addWidget(self.btn_load_model)
         layout.addWidget(self.output)
+
+        self.figure = Figure(figsize=(5, 4))
+        self.canvas = FigureCanvas(self.figure)
+        layout.addWidget(self.canvas)
 
         self.setLayout(layout)
 
@@ -200,8 +207,8 @@ class MLApp(QWidget):
             self.y = df["totdmgtochamp"]
 
         else:
-            features = df.columns.drop("Outcome")
-            self.y = df["Outcome"]
+            features = df.columns.drop("Glucose")
+            self.y = df["Glucose"]
 
         self.X = df[features]
 
@@ -229,23 +236,36 @@ class MLApp(QWidget):
             f"R2: {r2_score(y_true, y_pred):.3f}"
         )
 
+    def plot_predictions(self, y_true, y_pred, title="Реальные vs Предсказанные"):
+        self.figure.clear()
+        ax = self.figure.add_subplot(111)
+        ax.scatter(y_true, y_pred, color='blue', alpha=0.6, edgecolors='k')
+        ax.plot([y_true.min(), y_true.max()], [y_true.min(), y_true.max()], 'r--', linewidth=2)
+        ax.set_xlabel("Реальные значения")
+        ax.set_ylabel("Предсказанные значения")
+        ax.set_title(title)
+        self.canvas.draw()
+
     def train_lr(self):
         self.model = LinearRegression()
         self.model.fit(self.X_train, self.y_train)
         preds = self.model.predict(self.X_test)
         self.output.setText("Linear Regression\n" + self.metrics(self.y_test, preds))
+        self.plot_predictions(self.y_test, preds, title="Linear Regression")
 
     def train_lasso(self):
         self.model = Lasso(alpha=0.01)
         self.model.fit(self.X_train, self.y_train)
         preds = self.model.predict(self.X_test)
         self.output.setText("LASSO\n" + self.metrics(self.y_test, preds))
+        self.plot_predictions(self.y_test, preds, title="LASSO Regression")
 
     def train_knn(self):
         self.model = KNeighborsRegressor(n_neighbors=7)
         self.model.fit(self.X_train, self.y_train)
         preds = self.model.predict(self.X_test)
         self.output.setText("KNN\n" + self.metrics(self.y_test, preds))
+        self.plot_predictions(self.y_test, preds, title="KNN Regression")
 
     def save_model(self):
         joblib.dump(self.model, "model.pkl")
