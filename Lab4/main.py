@@ -47,11 +47,14 @@ class MLApp(QWidget):
         top.addWidget(self.btn_diabetes)
         top.addWidget(self.btn_lol)
 
+        self.btn_hypotheses = QPushButton("Проверка гипотез")
+
         layout = QVBoxLayout()
         layout.addLayout(top)
         layout.addWidget(self.btn_load)
         layout.addWidget(self.btn_eda)
         layout.addWidget(self.btn_prepare)
+        layout.addWidget(self.btn_hypotheses)
         layout.addWidget(self.btn_lr)
         layout.addWidget(self.btn_lasso)
         layout.addWidget(self.btn_knn)
@@ -60,6 +63,8 @@ class MLApp(QWidget):
         layout.addWidget(self.output)
 
         self.setLayout(layout)
+
+        self.btn_hypotheses.clicked.connect(self.check_hypotheses)
 
         self.btn_diabetes.clicked.connect(self.set_diabetes)
         self.btn_lol.clicked.connect(self.set_lol)
@@ -136,6 +141,48 @@ class MLApp(QWidget):
             f"Числовые переменные:\n{num_stats}\n\n"
             f"Категориальные переменные:\n{cat_info}"
         )
+
+    def check_hypotheses(self):
+        if self.df is None:
+            QMessageBox.warning(self, "Ошибка", "Данные не загружены")
+            return
+
+        result_text = "Проверка гипотез:\n\n"
+
+        if self.dataset == "diabetes":
+            target = "Outcome"
+            features = self.df.columns.drop(target)
+            corr = self.df[features].corrwith(self.df[target]).sort_values(ascending=False)
+            result_text += "Корреляция признаков с Outcome:\n"
+            result_text += corr.to_string(float_format="{:.3f}".format)
+            result_text += "\n\nВыводы:\n"
+            result_text += (
+                "Наибольшая положительная корреляция с диабетом у Glucose и BMI.\n"
+                "Возраст оказывает умеренное влияние.\n"
+                "Второстепенные признаки имеют минимальное влияние.\n"
+                "Наследственная предрасположенность слабо влияет.\n"
+                "Количество беременностей показывает умеренную корреляцию.\n"
+            )
+
+        elif self.dataset == "lol":
+            target = "totdmgtochamp"
+            features = ["kills", "deaths", "assists", "goldearned", "duration"]
+            corr = self.df[features + [target]].corr()[target].drop(target).sort_values(ascending=False)
+            result_text += "Корреляция ключевых показателей с totdmgtochamp:\n"
+            result_text += corr.to_string(float_format="{:.3f}".format)
+            result_text += "\n\nВыводы:\n"
+            result_text += (
+                "Наибольшая положительная корреляция с общим уроном по чемпионам у kills и goldearned.\n"
+                "assists показывает умеренное влияние.\n"
+                "deaths отрицательно влияет.\n"
+                "Продолжительность матча имеет слабую положительную корреляцию.\n"
+            )
+
+        else:
+            QMessageBox.warning(self, "Ошибка", "Выберите датасет")
+            return
+
+        self.output.setText(result_text)
 
     def prepare(self):
         df = self.df.copy()
