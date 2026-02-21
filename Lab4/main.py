@@ -104,26 +104,37 @@ class MLApp(QWidget):
         self.output.setText(f"Данные загружены\nРазмер: {self.df.shape}")
 
     def eda(self):
-        mem = self.df.memory_usage(deep=True).sum() / 1024**2
+        if self.df is None:
+            QMessageBox.warning(self, "Ошибка", "Данные не загружены")
+            return
 
-        num_stats = self.df.select_dtypes(np.number).describe(
-            percentiles=[0.25, 0.5, 0.75]
-        ).T
+        n_rows, n_cols = self.df.shape
+        mem = self.df.memory_usage(deep=True).sum() / 1024 ** 2
+
+        num_cols = self.df.select_dtypes(np.number)
+        num_stats = num_cols.agg({
+            col: ['min', 'median', 'mean', 'max',
+                  lambda x: x.quantile(0.25),
+                  lambda x: x.quantile(0.75)]
+            for col in num_cols.columns
+        })
+
+        num_stats.index = ['min', 'median', 'mean', 'max', '25%', '75%']
 
         cat_cols = self.df.select_dtypes("object").columns
         cat_info = ""
         for col in cat_cols:
-            mode = self.df[col].mode()[0]
-            count = (self.df[col] == mode).sum()
-            cat_info += f"{col}: мода={mode}, встречается={count}\n"
+            mode_val = self.df[col].mode()[0]
+            mode_count = (self.df[col] == mode_val).sum()
+            cat_info += f"{col}: мода={mode_val}, встречается={mode_count} раз\n"
 
         self.output.setText(
-            f"EDA\n"
-            f"Строк: {self.df.shape[0]}\n"
-            f"Столбцов: {self.df.shape[1]}\n"
+            f"Обзор данных (EDA)\n"
+            f"Строк: {n_rows}\n"
+            f"Столбцов: {n_cols}\n"
             f"Память: {mem:.2f} MB\n\n"
-            f"Числовые признаки:\n{num_stats}\n\n"
-            f"Категориальные:\n{cat_info}"
+            f"Числовые переменные:\n{num_stats}\n\n"
+            f"Категориальные переменные:\n{cat_info}"
         )
 
     def prepare(self):
