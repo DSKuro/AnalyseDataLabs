@@ -7,226 +7,223 @@ import umap
 
 from PySide6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QPushButton,
-    QLabel, QFileDialog, QComboBox
+    QLabel, QFileDialog, QTextEdit, QMessageBox, QHBoxLayout
 )
-
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 import matplotlib.pyplot as plt
 
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import KernelPCA, PCA
 from sklearn.manifold import TSNE
+from sklearn.metrics import silhouette_score
+from sklearn.cluster import KMeans
 
-
-class PenguinApp(QWidget):
+class DimReductionApp(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Dimensionality Reduction App")
-        self.resize(1100, 900)
-
-        self.layout = QVBoxLayout()
-        self.setLayout(self.layout)
-
-        self.label = QLabel("Загрузите CSV файл")
-        self.layout.addWidget(self.label)
-
-        self.load_btn = QPushButton("Загрузить CSV")
-        self.load_btn.clicked.connect(self.load_csv)
-        self.layout.addWidget(self.load_btn)
-
-        self.eda_btn = QPushButton("Выполнить EDA")
-        self.eda_btn.clicked.connect(self.perform_eda)
-        self.layout.addWidget(self.eda_btn)
-
-        self.layout.addWidget(QLabel("Метод снижения размерности:"))
-
-        self.dim_combo = QComboBox()
-        self.dim_combo.addItems(["Kernel PCA", "t-SNE", "UMAP"])
-        self.layout.addWidget(self.dim_combo)
-
-        self.dim_btn = QPushButton("Применить метод")
-        self.dim_btn.clicked.connect(self.apply_dim_reduction)
-        self.layout.addWidget(self.dim_btn)
-
-        self.load_model_btn = QPushButton("Загрузить модель")
-        self.load_model_btn.clicked.connect(self.load_model)
-        self.layout.addWidget(self.load_model_btn)
-
-        self.canvas = FigureCanvas(plt.Figure(figsize=(8, 6)))
-        self.layout.addWidget(self.canvas)
-
-        self.status_label = QLabel("")
-        self.layout.addWidget(self.status_label)
+        self.resize(1200, 900)
 
         self.df = None
         self.X_scaled = None
         self.scaler = None
         self.kpca_models = {}
+        self.model = None
 
-    # ===========================
-    # Загрузка данных
-    # ===========================
+        self.output = QTextEdit()
+        self.output.setReadOnly(True)
+
+        self.btn_load = QPushButton("Загрузить CSV")
+        self.btn_eda = QPushButton("EDA")
+        self.btn_kernel = QPushButton("Kernel PCA")
+        self.btn_tsne = QPushButton("t-SNE")
+        self.btn_umap = QPushButton("UMAP")
+        self.btn_save_model = QPushButton("Сохранить модель")
+        self.btn_load_model = QPushButton("Загрузить модель")
+
+        top = QHBoxLayout()
+        top.addWidget(self.btn_load)
+        top.addWidget(self.btn_eda)
+        top.addWidget(self.btn_kernel)
+        top.addWidget(self.btn_tsne)
+        top.addWidget(self.btn_umap)
+        top.addWidget(self.btn_save_model)
+        top.addWidget(self.btn_load_model)
+
+        layout = QVBoxLayout()
+        layout.addLayout(top)
+        layout.addWidget(self.output)
+
+        self.figure = plt.Figure(figsize=(8,6))
+        self.canvas = FigureCanvas(self.figure)
+        layout.addWidget(self.canvas)
+
+        self.setLayout(layout)
+
+        self.btn_load.clicked.connect(self.load_csv)
+        self.btn_eda.clicked.connect(self.eda)
+        self.btn_kernel.clicked.connect(self.run_kernel_pca)
+        self.btn_tsne.clicked.connect(self.run_tsne)
+        self.btn_umap.clicked.connect(self.run_umap)
+        self.btn_save_model.clicked.connect(self.save_model)
+        self.btn_load_model.clicked.connect(self.load_model)
+
     def load_csv(self):
-        file_path, _ = QFileDialog.getOpenFileName(
-            self, "Выбрать CSV", "", "CSV Files (*.csv)"
-        )
-
+        file_path, _ = QFileDialog.getOpenFileName(self, "Выбрать CSV", "", "CSV Files (*.csv)")
         if not file_path:
             return
 
         self.df = pd.read_csv(file_path).dropna()
-        self.label.setText(f"Файл загружен: {file_path}")
+        self.output.setText(f"Файл загружен: {file_path}\nРазмер: {self.df.shape}")
 
         num_cols = self.df.select_dtypes(include=np.number).columns
         X = self.df[num_cols]
 
-        # ===== EDA базовые характеристики =====
-        print("\n===== DESCRIBE =====")
-        print(X.describe())
-
-        print("\n===== CORRELATION =====")
-        print(X.corr())
-
-        # ===== Удаление выбросов (IQR) =====
         for col in num_cols:
             Q1 = X[col].quantile(0.25)
             Q3 = X[col].quantile(0.75)
             IQR = Q3 - Q1
-            X = X[(X[col] >= Q1 - 1.5 * IQR) &
-                  (X[col] <= Q3 + 1.5 * IQR)]
+            X = X[(X[col] >= Q1 - 1.5*IQR) & (X[col] <= Q3 + 1.5*IQR)]
 
         self.df = self.df.loc[X.index]
 
-        # ===== Нормализация =====
         self.scaler = StandardScaler()
         self.X_scaled = self.scaler.fit_transform(X)
-
         joblib.dump(self.scaler, "scaler.pkl")
+        self.output.append("Данные обработаны и нормализованы")
 
-        self.status_label.setText("Данные загружены и обработаны")
-
-    # ===========================
-    # EDA
-    # ===========================
-    def perform_eda(self):
+    def eda(self):
         if self.df is None:
-            self.status_label.setText("Сначала загрузите данные")
+            QMessageBox.warning(self, "Ошибка", "Данные не загружены")
             return
 
-        num_cols = self.df.select_dtypes(include=np.number).columns
+        n_rows, n_cols = self.df.shape
+        mem = self.df.memory_usage(deep=True).sum() / 1024 ** 2
 
-        fig = self.canvas.figure
-        fig.clear()
+        num_cols = self.df.select_dtypes(np.number)
+        num_stats = num_cols.agg({
+            col: ['min', 'median', 'mean', 'max',
+                  lambda x: x.quantile(0.25),
+                  lambda x: x.quantile(0.75)]
+            for col in num_cols.columns
+        })
+        num_stats.index = ['min','median','mean','max','25%','75%']
 
-        # Корреляционная матрица
-        ax1 = fig.add_subplot(221)
-        sns.heatmap(self.df[num_cols].corr(),
-                    annot=True, cmap="coolwarm", ax=ax1)
-        ax1.set_title("Correlation Matrix")
+        # категориальные
+        cat_cols = self.df.select_dtypes("object").columns
+        cat_info = ""
+        for col in cat_cols:
+            mode_val = self.df[col].mode()[0]
+            mode_count = (self.df[col]==mode_val).sum()
+            cat_info += f"{col}: мода={mode_val}, встречается={mode_count} раз\n"
 
-        # Boxplot
-        ax2 = fig.add_subplot(222)
-        self.df[num_cols].boxplot(ax=ax2)
-        ax2.set_title("Boxplot")
-
-        # Гистограмма первого признака
-        ax3 = fig.add_subplot(223)
-        self.df[num_cols[0]].hist(ax=ax3)
-        ax3.set_title(f"Distribution: {num_cols[0]}")
-
-        self.canvas.draw()
-        self.status_label.setText("EDA выполнен")
-
-    # ===========================
-    # Снижение размерности
-    # ===========================
-    def apply_dim_reduction(self):
-        if self.X_scaled is None:
-            self.status_label.setText("Сначала загрузите данные")
-            return
-
-        method = self.dim_combo.currentText()
-        fig = self.canvas.figure
-        fig.clear()
-
-        if method == "Kernel PCA":
-            kernels = ['linear', 'poly', 'rbf', 'sigmoid', 'cosine']
-
-            for i, kernel in enumerate(kernels):
-                kpca = KernelPCA(n_components=2, kernel=kernel)
-                X_kpca = kpca.fit_transform(self.X_scaled)
-                self.kpca_models[kernel] = kpca
-
-                ax = fig.add_subplot(231 + i)
-                ax.scatter(X_kpca[:, 0], X_kpca[:, 1], alpha=0.6)
-                ax.set_title(kernel)
-
-                joblib.dump(kpca, f"kpca_{kernel}.pkl")
-
-                # Linear → считаем дисперсию
-                if kernel == "linear":
-                    pca = PCA()
-                    X_pca = pca.fit_transform(self.X_scaled)
-
-                    explained = pca.explained_variance_ratio_
-                    cumulative = np.cumsum(explained)
-                    lost_variance = 1 - cumulative[1]
-
-                    print("\nExplained variance:")
-                    print(explained[:5])
-                    print("Lost variance (2 components):",
-                          round(lost_variance, 4))
-
-                    ax_var = fig.add_subplot(236)
-                    ax_var.plot(cumulative, marker='o')
-                    ax_var.set_title("Cumulative Variance")
-
-            self.status_label.setText(
-                "Kernel PCA выполнен для всех ядер"
-            )
-
-        elif method == "t-SNE":
-            tsne = TSNE(n_components=2, random_state=42)
-            X_tsne = tsne.fit_transform(self.X_scaled)
-
-            ax = fig.add_subplot(111)
-            ax.scatter(X_tsne[:, 0], X_tsne[:, 1])
-            ax.set_title("t-SNE")
-
-            joblib.dump(tsne, "tsne.pkl")
-            self.status_label.setText("t-SNE выполнен")
-
-        elif method == "UMAP":
-            reducer = umap.UMAP(n_components=2)
-            X_umap = reducer.fit_transform(self.X_scaled)
-
-            ax = fig.add_subplot(111)
-            ax.scatter(X_umap[:, 0], X_umap[:, 1])
-            ax.set_title("UMAP")
-
-            joblib.dump(reducer, "umap.pkl")
-            self.status_label.setText("UMAP выполнен")
-
-        self.canvas.draw()
-
-    # ===========================
-    # Загрузка модели
-    # ===========================
-    def load_model(self):
-        file_path, _ = QFileDialog.getOpenFileName(
-            self, "Загрузить модель", "", "PKL Files (*.pkl)"
+        self.output.setText(
+            f"EDA\nСтрок: {n_rows}\nСтолбцов: {n_cols}\nПамять: {mem:.2f} MB\n\n"
+            f"Числовые переменные:\n{num_stats}\n\n"
+            f"Категориальные переменные:\n{cat_info}"
         )
 
-        if not file_path:
+    def compute_metrics(self, X_proj, method_name):
+        kmeans = KMeans(n_clusters=3, random_state=42)
+        labels = kmeans.fit_predict(X_proj)
+        sil_score = silhouette_score(X_proj, labels)
+
+        self.output.append(f"\nМетрики для {method_name}:")
+        self.output.append(f"Silhouette Score: {sil_score:.3f}")
+
+        return sil_score
+
+    def run_kernel_pca(self):
+        if self.X_scaled is None:
+            QMessageBox.warning(self, "Ошибка", "Данные не загружены")
             return
 
-        model = joblib.load(file_path)
-        self.status_label.setText(f"Модель загружена: {file_path}")
-        print("Загружена модель:", model)
+        kernels = ['linear', 'poly', 'rbf', 'sigmoid', 'cosine']
+        fig = self.figure
+        fig.clear()
 
+        metrics_summary = ""
+        for i, kernel in enumerate(kernels):
+            kpca = KernelPCA(n_components=2, kernel=kernel)
+            X_kpca = kpca.fit_transform(self.X_scaled)
+            self.kpca_models[kernel] = kpca
+            joblib.dump(kpca, f"kpca_{kernel}.pkl")
+
+            ax = fig.add_subplot(231+i)
+            ax.scatter(X_kpca[:,0], X_kpca[:,1], alpha=0.6)
+            ax.set_title(kernel)
+
+            sil_score = self.compute_metrics(X_kpca, f"Kernel PCA ({kernel})")
+            metrics_summary += f"{kernel}: Silhouette={sil_score:.3f}\n"
+
+            if kernel=="linear":
+                pca = PCA()
+                X_pca = pca.fit_transform(self.X_scaled)
+                explained = pca.explained_variance_ratio_
+                cumulative = np.cumsum(explained)
+                lost_variance = 1 - cumulative[1]
+                self.output.append(f"Linear Kernel PCA: lost_variance={lost_variance:.3f}")
+                ax_var = fig.add_subplot(236)
+                ax_var.plot(cumulative, marker='o')
+                ax_var.set_title("Cumulative Variance")
+
+        self.canvas.draw()
+        self.output.append("\nСравнение Silhouette Score для всех ядер Kernel PCA:\n" + metrics_summary)
+
+    def run_tsne(self):
+        if self.X_scaled is None:
+            QMessageBox.warning(self, "Ошибка", "Данные не загружены")
+            return
+        tsne = TSNE(n_components=2, random_state=42)
+        X_tsne = tsne.fit_transform(self.X_scaled)
+        joblib.dump(tsne, "tsne.pkl")
+
+        fig = self.figure
+        fig.clear()
+        ax = fig.add_subplot(111)
+        ax.scatter(X_tsne[:,0], X_tsne[:,1], alpha=0.6)
+        ax.set_title("t-SNE")
+        self.canvas.draw()
+
+        sil_score = self.compute_metrics(X_tsne, "t-SNE")
+        self.output.append(f"t-SNE выполнен. Silhouette Score={sil_score:.3f}")
+
+    def run_umap(self):
+        if self.X_scaled is None:
+            QMessageBox.warning(self, "Ошибка", "Данные не загружены")
+            return
+        reducer = umap.UMAP(n_components=2)
+        X_umap = reducer.fit_transform(self.X_scaled)
+        joblib.dump(reducer, "umap.pkl")
+
+        fig = self.figure
+        fig.clear()
+        ax = fig.add_subplot(111)
+        ax.scatter(X_umap[:,0], X_umap[:,1], alpha=0.6)
+        ax.set_title("UMAP")
+        self.canvas.draw()
+
+        sil_score = self.compute_metrics(X_umap, "UMAP")
+        self.output.append(f"UMAP выполнен. Silhouette Score={sil_score:.3f}")
+
+    def save_model(self):
+        if self.model is None:
+            QMessageBox.warning(self, "Ошибка", "Модель не обучена")
+            return
+        joblib.dump(self.model, "model.pkl")
+        joblib.dump(self.scaler, "scaler.pkl")
+        QMessageBox.information(self, "Сохранение", "Модель и scaler сохранены")
+
+    def load_model(self):
+        try:
+            self.model = joblib.load("model.pkl")
+            self.scaler = joblib.load("scaler.pkl")
+            QMessageBox.information(self, "Загрузка", "Модель и scaler загружены")
+        except:
+            QMessageBox.warning(self, "Ошибка", "Файл модели не найден")
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    window = PenguinApp()
+    window = DimReductionApp()
     window.show()
     sys.exit(app.exec())
