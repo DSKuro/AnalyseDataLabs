@@ -25,6 +25,7 @@ class DimReductionApp(QWidget):
 
         self.df = None
         self.X_scaled = None
+        self.X_sample = None
         self.scaler = None
         self.kpca_models = {}
         self.model = None
@@ -59,7 +60,7 @@ class DimReductionApp(QWidget):
         layout.addLayout(top)
         layout.addWidget(self.output)
 
-        self.figure = plt.Figure(figsize=(8,6))
+        self.figure = plt.Figure(figsize=(12,6))
         self.canvas = FigureCanvas(self.figure)
         layout.addWidget(self.canvas)
 
@@ -95,7 +96,6 @@ class DimReductionApp(QWidget):
 
                 self.df = df.dropna()
                 self.output.setText(f"LoL Dataset загружен. Размер: {self.df.shape}")
-
             else:
                 QMessageBox.warning(self, "Ошибка", "Выберите датасет")
                 return
@@ -118,6 +118,15 @@ class DimReductionApp(QWidget):
             self.X_scaled = self.scaler.fit_transform(X)
             joblib.dump(self.scaler, "scaler.pkl")
             self.output.append("Данные нормализованы и выбросы обработаны")
+
+            # подвыборка для LoL, чтобы ускорить визуализацию
+            if self.dataset == "LoL" and self.X_scaled.shape[0] > 5000:
+                np.random.seed(42)
+                idx = np.random.choice(self.X_scaled.shape[0], 5000, replace=False)
+                self.X_sample = self.X_scaled[idx]
+                self.output.append("Используется подвыборка 5000 строк для ускорения алгоритмов")
+            else:
+                self.X_sample = self.X_scaled
 
         except Exception as e:
             QMessageBox.warning(self, "Ошибка", str(e))
@@ -169,7 +178,7 @@ class DimReductionApp(QWidget):
     # Kernel PCA
     # ===========================
     def run_kernel_pca(self):
-        if self.X_scaled is None:
+        if self.X_sample is None:
             QMessageBox.warning(self, "Ошибка", "Данные не загружены")
             return
 
@@ -180,11 +189,11 @@ class DimReductionApp(QWidget):
         metrics_summary = ""
         for i, kernel in enumerate(kernels):
             kpca = KernelPCA(n_components=2, kernel=kernel)
-            X_kpca = kpca.fit_transform(self.X_scaled)
+            X_kpca = kpca.fit_transform(self.X_sample)
             self.kpca_models[kernel] = kpca
             joblib.dump(kpca, f"kpca_{kernel}.pkl")
 
-            ax = fig.add_subplot(231+i)
+            ax = fig.add_subplot(1,len(kernels),i+1)
             ax.scatter(X_kpca[:,0], X_kpca[:,1], alpha=0.6)
             ax.set_title(kernel)
 
@@ -193,27 +202,24 @@ class DimReductionApp(QWidget):
 
             if kernel=="linear":
                 pca = PCA()
-                X_pca = pca.fit_transform(self.X_scaled)
+                X_pca = pca.fit_transform(self.X_sample)
                 explained = pca.explained_variance_ratio_
                 cumulative = np.cumsum(explained)
                 lost_variance = 1 - cumulative[1]
                 self.output.append(f"Linear Kernel PCA: lost_variance={lost_variance:.3f}")
-                ax_var = fig.add_subplot(236)
-                ax_var.plot(cumulative, marker='o')
-                ax_var.set_title("Cumulative Variance")
 
         self.canvas.draw()
-        self.output.append("\nСравнение Silhouette Score для всех ядер Kernel PCA:\n" + metrics_summary)
+        self.output.append("\nСравнение Silhouette Score для Kernel PCA:\n" + metrics_summary)
 
     # ===========================
     # t-SNE
     # ===========================
     def run_tsne(self):
-        if self.X_scaled is None:
+        if self.X_sample is None:
             QMessageBox.warning(self, "Ошибка", "Данные не загружены")
             return
-        tsne = TSNE(n_components=2, random_state=42)
-        X_tsne = tsne.fit_transform(self.X_scaled)
+        tsne = TSNE(n_components=2, random_state=42, method='barnes_hut', perplexity=30)
+        X_tsne = tsne.fit_transform(self.X_sample)
         joblib.dump(tsne, "tsne.pkl")
 
         fig = self.figure
@@ -230,11 +236,11 @@ class DimReductionApp(QWidget):
     # UMAP
     # ===========================
     def run_umap(self):
-        if self.X_scaled is None:
+        if self.X_sample is None:
             QMessageBox.warning(self, "Ошибка", "Данные не загружены")
             return
-        reducer = umap.UMAP(n_components=2)
-        X_umap = reducer.fit_transform(self.X_scaled)
+        reducer = umap.UMAP(n_components=2, n_neighbors=15, min_dist=0.1)
+        X_umap = reducer.fit_transform(self.X_sample)
         joblib.dump(reducer, "umap.pkl")
 
         fig = self.figure
