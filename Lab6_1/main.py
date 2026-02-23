@@ -11,12 +11,22 @@ from nltk.stem.snowball import SnowballStemmer
 
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, precision_score
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.manifold import TSNE
+
+import joblib
+from sklearn.metrics import (
+    accuracy_score,
+    precision_score,
+    recall_score,
+    f1_score,
+    confusion_matrix,
+    ConfusionMatrixDisplay
+)
 
 from gensim.models import Word2Vec
 from wordcloud import WordCloud
@@ -83,10 +93,25 @@ models = {
 }
 
 results = {}
+trained_models = {}
+predictions = {}
+
 for name, model in models.items():
     model.fit(X_train, y_train)
     preds = model.predict(X_test)
-    results[name] = accuracy_score(y_test, preds)
+
+    trained_models[name] = model
+    predictions[name] = preds
+
+    results[name] = {
+        "accuracy": accuracy_score(y_test, preds),
+        "precision": precision_score(y_test, preds),
+        "recall": recall_score(y_test, preds),
+        "f1": f1_score(y_test, preds)
+    }
+
+    # сохраняем модель
+    joblib.dump(model, f"{name}_model.pkl")
 
 class NLPApp(QWidget):
     def __init__(self):
@@ -110,6 +135,7 @@ class NLPApp(QWidget):
         self.canvas = FigureCanvas(Figure(figsize=(8, 6)))
         self.ax = self.canvas.figure.subplots()
 
+
         layout = QVBoxLayout()
         layout.addWidget(btn_tfidf)
         layout.addWidget(btn_wc)
@@ -124,8 +150,30 @@ class NLPApp(QWidget):
         self.output.setText(str(tfidf_means.head(10)))
 
     def show_classification(self):
-        text = "\n".join([f"{k}: {v:.2f}" for k, v in results.items()])
-        self.output.setText(text)
+        self.ax.clear()
+
+        metrics_text = ""
+        model_names = list(results.keys())
+        accuracies = []
+
+        for name in model_names:
+            metrics = results[name]
+            accuracies.append(metrics["accuracy"])
+
+            metrics_text += (
+                f"{name}\n"
+                f"Accuracy: {metrics['accuracy']:.2f}\n"
+                f"Precision: {metrics['precision']:.2f}\n"
+                f"Recall: {metrics['recall']:.2f}\n"
+                f"F1-score: {metrics['f1']:.2f}\n\n"
+            )
+
+        self.ax.bar(model_names, accuracies)
+        self.ax.set_title("Accuracy моделей")
+        self.ax.set_ylabel("Accuracy")
+        self.canvas.draw()
+
+        self.output.setText(metrics_text)
 
     def show_similar_word(self):
         top_word = tfidf_means.index[0]
