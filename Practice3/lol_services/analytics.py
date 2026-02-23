@@ -106,6 +106,7 @@ def query5_match_duration():
 
 def query5_most_banned(limit=10):
     df = (
+
         teambans
         .join(champs, teambans.championid == champs.id)
         .groupBy(champs.name.alias("champion"))

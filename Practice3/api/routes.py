@@ -1,6 +1,8 @@
+import pickle
+
 from fastapi import APIRouter, Query
 from lol_services.analytics import *
-
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/analytics", tags=["Analytics"])
 
@@ -37,3 +39,29 @@ def match_duration_chart():
 @router.get("/bans")
 def bans_chart():
     return query5_most_banned()
+
+class PlayerStats(BaseModel):
+    kills: int
+    deaths: int
+    assists: int
+    gold: int
+
+with open("model.pkl", "rb") as f:
+    data = pickle.load(f)
+    model = data["model"]
+    metrics = data["metrics"]
+
+@router.post("/predict")
+def predict(stats: PlayerStats):
+    X = [[stats.kills, stats.deaths, stats.assists, stats.gold]]
+    pred = model.predict(X)[0]
+    prob = model.predict_proba(X)[0]
+    return {
+        "prediction": int(pred),
+        "prob_win": float(prob[1]),
+        "prob_lose": float(prob[0])
+    }
+
+@router.get("/metrics")
+def get_metrics():
+    return metrics
