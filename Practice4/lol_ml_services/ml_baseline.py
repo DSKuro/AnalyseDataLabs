@@ -6,7 +6,6 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import r2_score, mean_squared_error
 
 def train_baseline_model(df: pd.DataFrame):
-    # 🔹 Цель теперь avg_damage
     features = [
         "avg_kills",
         "avg_deaths",

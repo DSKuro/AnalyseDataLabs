@@ -17,6 +17,7 @@ from lol_ml_services.analytics import (
 
 from lol_ml_services.automl_pycarret import train_automl
 from lol_ml_services.ml_baseline import train_baseline_model
+from pycaret.regression import predict_model
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/analytics", tags=["Analytics"])
@@ -76,26 +77,39 @@ def load_model(model_type: str):
 
 @router.post("/predict")
 def predict(stats: PlayerStats):
-
     model = load_model(stats.model_type)
-
     if model is None:
         return {"error": "Model not trained yet"}
 
-    X = pd.DataFrame([{
+    # 🔹 Создаем DataFrame из input
+    X_input = pd.DataFrame([{
         "avg_kills": stats.avg_kills,
         "avg_deaths": stats.avg_deaths,
         "avg_assists": stats.avg_assists,
-        "avg_gold": stats.avg_gold
+        "avg_gold": stats.avg_gold,
     }])
 
-    prediction = model.predict(X)[0]
+    if stats.model_type == "automl":
+        if hasattr(model, "feature_names_in_"):
+            model_features = list(model.feature_names_in_)
+        else:
+            model_features = ["avg_kills", "avg_deaths", "avg_assists", "avg_gold"]
+
+        for f in model_features:
+            if f not in X_input.columns:
+                X_input[f] = 0
+
+        X_input = X_input[model_features]
+
+        pred_df = predict_model(model, data=X_input)
+        prediction = pred_df["prediction_label"].iloc[0]
+    else:
+        prediction = model.predict(X_input)[0]
 
     return {
         "model_used": stats.model_type,
         "predicted_avg_damage": round(float(prediction), 4)
     }
-
 
 @router.post("/ml/train")
 def train_ml(method: str = Query("baseline", enum=["baseline", "automl"])):

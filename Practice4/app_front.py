@@ -7,10 +7,6 @@ API_URL = "http://127.0.0.1:8000/analytics"
 st.set_page_config(page_title="LoL Analytics", layout="wide")
 st.title("Анализ матчей League of Legends")
 
-# =========================
-# 📊 EDA
-# =========================
-
 st.header("Основные результаты EDA")
 
 if st.checkbox("Топ чемпионов по KDA"):
@@ -50,10 +46,6 @@ if st.checkbox("Наиболее забаненные чемпионы"):
     st.bar_chart(df.set_index("champion")["bans"])
 
 
-#=============
-# 🧠 Обучение модели
-# =========================
-
 st.header("Прогноз среднего урона (avg_damage)")
 
 model_type = st.selectbox("Выберите модель", ["baseline", "automl"], key="predict_model_type")
@@ -63,14 +55,12 @@ avg_deaths = st.number_input("Avg Deaths", 0.0, 20.0, 5.0)
 avg_assists = st.number_input("Avg Assists", 0.0, 20.0, 5.0)
 avg_gold = st.number_input("Avg Gold", 0.0, 30000.0, 12000.0)
 
-# 🔹 Кнопка обучения
 if st.button("Обучить модель"):
     r = requests.post(f"{API_URL}/ml/train?method={model_type}")
     result = r.json()
     st.success(f"Модель обучена! Тип: {result.get('model', result.get('type'))}")
     st.write(result)
 
-# 🔹 Кнопка предсказания
 if st.button("Предсказать damage"):
     payload = {
         "avg_kills": avg_kills,

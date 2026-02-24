@@ -16,10 +16,6 @@ stats1 = stats1.withColumn(
     when(col("win") == 1, 1).otherwise(0)
 )
 
-# ======================
-# ANALYTICS (API)
-# ======================
-
 def query1_top_kda(min_games=100, limit=10):
     df = (
         participants
@@ -125,16 +121,7 @@ def query5_most_banned(limit=10):
     )
     return df.toPandas().to_dict("records")
 
-
-# ======================
-# DATASET FOR ML / AutoML
-# ======================
-
 def get_ml_dataset(min_games=100):
-    """
-    Табличный датасет для ML / AutoML
-    Целевая переменная: winrate
-    """
     df = (
         participants
         .join(stats1, "id")
