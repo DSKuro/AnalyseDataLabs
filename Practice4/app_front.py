@@ -7,7 +7,7 @@ API_URL = "http://127.0.0.1:8000/analytics"
 st.set_page_config(page_title="LoL Analytics", layout="wide")
 st.title("Анализ матчей League of Legends")
 
-tab1, tab2 = st.tabs(["📊 Аналитика", "🤖 ML: обучение и прогноз"])
+tab1, tab2 = st.tabs(["Аналитика", "ML: обучение и прогноз"])
 
 with tab1:
 
