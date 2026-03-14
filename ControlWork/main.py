@@ -2,8 +2,11 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
 from sklearn.neighbors import KNeighborsClassifier
+
 from sklearn.metrics import (
     accuracy_score,
     classification_report,
@@ -14,6 +17,7 @@ from sklearn.metrics import (
     roc_auc_score,
     roc_curve
 )
+
 from scipy.stats import ttest_ind, chi2_contingency
 import pickle
 
@@ -49,16 +53,14 @@ plt.ylabel("Clicked on Ad")
 plt.title("Scatter Plot")
 plt.show()
 
-# 3. EDA (по требованиям)
+# 3. EDA
 
 print("\n===== EDA =====")
 
-# Доля пропусков
 missing_ratio = df.isnull().mean()
 print("\nДоля пропусков:")
 print(missing_ratio)
 
-# Числовые признаки
 numeric_cols = df.select_dtypes(include=np.number).columns
 
 eda_numeric = pd.DataFrame(index=numeric_cols)
@@ -92,10 +94,10 @@ print(df_encoded.shape)
 corr = df_encoded.corr()
 
 target_corr = corr['Clicked on Ad'].sort_values(ascending=False)
-print("\nТоп-10 корреляций с целевой переменной:")
-print(target_corr.head(10))
+print("\nТоп корреляций с целевой переменной:")
+print(target_corr)
 
-plt.figure(figsize=(10, 8))
+plt.figure(figsize=(10,8))
 sns.heatmap(corr, annot=True, cmap='coolwarm')
 plt.title("Correlation Heatmap")
 plt.show()
@@ -109,17 +111,43 @@ X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42
 )
 
-print("\nРазмер обучающей выборки:", X_train.shape)
-print("Размер тестовой выборки:", X_test.shape)
+print("\nTrain size:", X_train.shape)
+print("Test size:", X_test.shape)
 
-# 7. Обучение модели
+# 7. Масштабирование
 
-model = KNeighborsClassifier(n_neighbors=5)
+scaler = StandardScaler()
+
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+# 8. Подбор лучшего k
+
+errors = []
+
+for k in range(1, 30):
+    knn = KNeighborsClassifier(n_neighbors=k)
+    knn.fit(X_train, y_train)
+    pred = knn.predict(X_test)
+    errors.append(1 - accuracy_score(y_test, pred))
+
+plt.figure()
+plt.plot(range(1,30), errors)
+plt.xlabel("K")
+plt.ylabel("Error")
+plt.title("Choosing optimal K")
+plt.show()
+
+# выбираем k
+model = KNeighborsClassifier(n_neighbors=10, weights='distance')
+
+# 9. Обучение модели
+
 model.fit(X_train, y_train)
 
 train_pred = model.predict(X_train)
 test_pred = model.predict(X_test)
-y_proba = model.predict_proba(X_test)[:, 1]
+y_proba = model.predict_proba(X_test)[:,1]
 
 print("\nTrain Accuracy:", accuracy_score(y_train, train_pred))
 print("Test Accuracy:", accuracy_score(y_test, test_pred))
@@ -127,7 +155,7 @@ print("Test Accuracy:", accuracy_score(y_test, test_pred))
 print("\nClassification Report:")
 print(classification_report(y_test, test_pred))
 
-# 8. Метрики
+# 10. Метрики
 
 cm = confusion_matrix(y_test, test_pred)
 accuracy = accuracy_score(y_test, test_pred)
@@ -143,23 +171,25 @@ print("Recall:", recall)
 print("F1-score:", f1)
 print("ROC-AUC:", roc_auc)
 
-# ROC-кривая
+# ROC кривая
+
 fpr, tpr, thresholds = roc_curve(y_test, y_proba)
 
+plt.figure()
 plt.plot(fpr, tpr)
-plt.plot([0, 1], [0, 1])
+plt.plot([0,1], [0,1])
 plt.xlabel("False Positive Rate")
 plt.ylabel("True Positive Rate")
 plt.title("ROC Curve")
 plt.show()
 
-# 9. Гипотеза 1 (t-test)
+# 11. Гипотеза 1 (t-test)
 
 print("\n===== Гипотеза 1 =====")
-print("H0: Среднее время на сайте одинаково у кликнувших и не кликнувших")
+print("H0: Среднее время на сайте одинаково")
 
-group0 = df[df['Clicked on Ad'] == 0]['Daily Time Spent on Site']
-group1 = df[df['Clicked on Ad'] == 1]['Daily Time Spent on Site']
+group0 = df[df['Clicked on Ad']==0]['Daily Time Spent on Site']
+group1 = df[df['Clicked on Ad']==1]['Daily Time Spent on Site']
 
 t_stat, p_value = ttest_ind(group0, group1)
 
@@ -171,7 +201,7 @@ if p_value < 0.05:
 else:
     print("Не отклоняем H0")
 
-# 10. Гипотеза 2 (Chi-square)
+# 12. Гипотеза 2 (Chi-square)
 
 print("\n===== Гипотеза 2 =====")
 print("H0: Пол и клик независимы")
@@ -188,7 +218,7 @@ if p < 0.05:
 else:
     print("Не отклоняем H0 — зависимости нет")
 
-# 11. Сохранение модели
+# 13. Сохранение модели
 
 with open("advertising_model.pkl", "wb") as f:
     pickle.dump(model, f)
